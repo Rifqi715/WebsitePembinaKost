@@ -15,6 +15,7 @@ class Booking extends Model
         'room_id',
         'tanggal_masuk',
         'status',
+        'bukti_pembayaran',
     ];
 
     // 2. Bikin jembatan relasi ke tabel User (Siapa yang booking)

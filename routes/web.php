@@ -1,8 +1,9 @@
 <?php
 
 use App\Models\Booking;
-use App\Http\Controllers\BookingController;
 use App\Models\Room;
+use App\Http\Controllers\BookingController;
+use App\Http\Controllers\RoomController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
@@ -22,28 +23,20 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
-// Route::get('/admin', function () {
-//     if (auth()->user()->role !== 'admin') {
-//         return redirect('/dashboard'); 
-//     }
-//     return view('admin'); 
-// })->middleware(['auth', 'verified'])->name('admin');
+// Route Manajemen Kamar oleh Admin
+Route::get('/admin/kamar', [RoomController::class, 'index'])->middleware(['auth', 'verified'])->name('kamar.index');
+Route::get('/admin/kamar/tambah', [RoomController::class, 'create'])->middleware(['auth', 'verified'])->name('kamar.create');
+Route::post('/admin/kamar', [RoomController::class, 'store'])->middleware(['auth', 'verified'])->name('kamar.store');
+Route::get('/admin/kamar/{id}/edit', [RoomController::class, 'edit'])->middleware(['auth', 'verified'])->name('kamar.edit');
+Route::put('/admin/kamar/{id}', [RoomController::class, 'update'])->middleware(['auth', 'verified'])->name('kamar.update');
 
-Route::get('/admin/kamar', [App\Http\Controllers\RoomController::class, 'index'])->middleware(['auth', 'verified'])->name('kamar.index');
-
-Route::get('/admin/kamar/tambah', [App\Http\Controllers\RoomController::class, 'create'])->middleware(['auth', 'verified'])->name('kamar.create');
-
-Route::post('/admin/kamar', [App\Http\Controllers\RoomController::class, 'store'])->middleware(['auth', 'verified'])->name('kamar.store');
-
-// Rute untuk menampilkan halaman form edit
-Route::get('/admin/kamar/{id}/edit', [App\Http\Controllers\RoomController::class, 'edit'])->middleware(['auth', 'verified'])->name('kamar.edit');
-
-// Rute untuk memproses update data ke database
-Route::put('/admin/kamar/{id}', [App\Http\Controllers\RoomController::class, 'update'])->middleware(['auth', 'verified'])->name('kamar.update');
-
+// Route khusus untuk user yang sudah login berkaitan dengan booking & pembayaran
 Route::middleware('auth')->group(function () {
     Route::get('/booking/{id}', [BookingController::class, 'create'])->name('booking.create');
     Route::post('/booking/{id}', [BookingController::class, 'store'])->name('booking.store');
+    
+    // Keamanan Terjamin: Berada di dalam middleware auth
+    Route::post('/booking/{id}/bayar', [BookingController::class, 'uploadPembayaran'])->name('booking.bayar');
 });
 
 require __DIR__.'/auth.php';

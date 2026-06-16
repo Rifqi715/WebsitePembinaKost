@@ -9,6 +9,7 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use App\Models\Pembayaran;
 
 class User extends Authenticatable implements FilamentUser
 {
@@ -53,5 +54,11 @@ class User extends Authenticatable implements FilamentUser
     {
         // Hanya yang role-nya 'admin' yang boleh masuk Filament
         return $this->role === 'admin';
+    }
+
+    // Relasi untuk menarik data pembayaran milik user
+    public function pembayarans()
+    {
+        return $this->hasMany(Pembayaran::class);
     }
 }

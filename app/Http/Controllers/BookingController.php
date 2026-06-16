@@ -5,42 +5,74 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Booking;
 use App\Models\Room;
-use Illuminate\Support\Facades\Auth; // Untuk mengambil data user yang sedang login
+use App\Models\Pembayaran; // Pastikan import model Pembayaran di bagian atas file
 
 class BookingController extends Controller
 {
-    // Fungsi 1: Menampilkan Halaman Formulir Booking
     public function create($id)
     {
-        // Cari data kamar berdasarkan ID yang diklik
-        $kamar = Room::findOrFail($id); 
-        
-        // Tampilkan halaman form (nanti kita buat file-nya) dan bawa data kamarnya
+        $kamar = Room::findOrFail($id);
         return view('booking', compact('kamar'));
     }
 
-    // Fungsi 2: Menyimpan Data Formulir ke Database
     public function store(Request $request, $id)
     {
-        // Pastikan user ngisi tanggal dengan benar (tidak boleh tanggal kemarin)
         $request->validate([
-            'tanggal_masuk' => 'required|date|after_or_equal:today',
+            'tanggal_masuk' => 'required|date',
         ]);
 
-        // Simpan data ke tabel bookings
+        $kamar = Room::findOrFail($id);
+
         Booking::create([
-            'user_id' => Auth::id(), // Otomatis mengambil ID user yang lagi login
-            'room_id' => $id,        // Mengambil ID kamar
+            'user_id' => auth()->id(),
+            'room_id' => $kamar->id,
             'tanggal_masuk' => $request->tanggal_masuk,
-            'status' => 'pending',   // Status awal selalu pending
+            'status' => 'pending',
         ]);
-        // Otomatis ubah status kamar jadi 'terisi' biar nggak di-booking orang lain
-        $kamarUbahStatus = Room::findOrFail($id);
-        $kamarUbahStatus->update([
+
+        // Catatan: Jika ingin langsung mengubah status kamar, biarkan baris ini. 
+        // Jika ingin diubah saat lunas saja, silakan hapus/komentari baris update di bawah ini.
+        $kamar->update([
             'status' => 'terisi'
         ]);
 
-        // Setelah sukses, lempar user ke halaman dashboard dengan pesan sukses
-        return redirect()->route('dashboard')->with('success', 'Booking berhasil! Menunggu persetujuan Admin.');
+        // Selesai booking, lempar ke rute 'riwayat' (bukan dashboard)
+        return redirect()->route('riwayat')->with('success', 'Booking berhasil! Menunggu persetujuan Admin.');
+    }
+
+    public function uploadPembayaran(Request $request, $id)
+    {
+        // 1. Validasi file yang diunggah wajib gambar & maks 2MB
+        // Menyesuaikan dengan name="bukti_transfer" dari file blade sebelumnya
+        $request->validate([
+            'bukti_transfer' => 'required|image|mimes:jpeg,png,jpg|max:2048',
+        ]);
+
+        // 2. Ambil data booking terkait
+        $booking = Booking::findOrFail($id);
+
+        // 3. Simpan file gambar ke folder storage/app/public/bukti_pembayaran
+        $path = null;
+        if ($request->hasFile('bukti_transfer')) {
+            $file = $request->file('bukti_transfer');
+            $path = $file->store('bukti_pembayaran', 'public');
+        }
+
+        // 4. Insert data baru ke tabel pembayarans
+        Pembayaran::create([
+            'user_id'      => auth()->id(),              // ID user yang sedang login
+            'room_id'      => $booking->room_id,         // Diambil dari relasi booking
+            'jumlah_bayar' => $booking->room->harga ?? 0, // Mengambil nominal harga kamar
+            'status'       => 'pending',                 // Default awal status pembayaran
+            'bukti_bayar'  => $path,                     // Path file foto yang disimpan
+        ]);
+
+        // 5. 🔥 FIX CRITICAL BUG: Update status booking agar tampilan di blade berubah
+        $booking->update([
+            'status' => 'menunggu_verifikasi'
+        ]);
+
+        // 6. Kembalikan ke halaman riwayat dengan pesan sukses
+        return redirect()->back()->with('success', 'Bukti transfer berhasil dikirim! Menunggu konfirmasi Bapak Kos.');
     }
 }
